@@ -51,3 +51,7 @@ MatchHistogram (clip clip1 , clip clip2, clip clip3, bool "raw", bool "show", bo
 - y, u , v\
     Select which planes to process. Any unprocessed planes will be copied from the third clip.
     Default: y =true; u / v = false.
+
+# License
+
+Same as the VapourSynth plugin.
