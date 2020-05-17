@@ -1,9 +1,3 @@
-# MatchHistogram
-
-MatchHistogram:
-- [port of the vs updated version](https://github.com/dubhater/vapoursynth-matchhistogram);
-- usage - MatchHistogram(clip, clip1, clip2, bool raw (default false), bool show (default false), bool debug (default false), int smoothing_window (default 8), bool y (default true), bool u (default false), bool v (default false)).
-
 # Description
 
 MatchHistogram modifies one clip's histogram to match the histogram of another clip.
@@ -12,7 +6,7 @@ Will produce weird results if frame contents are dissimilar.
 
 Should be used for analysis only, not for production.
 
-[This is a port of the VapourSynth plugin MatchHistogram](https://github.com/dubhater/vapoursynth-matchhistogram).
+This is [a port of the VapourSynth plugin MatchHistogram](https://github.com/dubhater/vapoursynth-matchhistogram).
 
 # Usage
 
@@ -54,6 +48,6 @@ MatchHistogram (clip clip1 , clip clip2, clip clip3, bool "raw", bool "show", bo
     This parameter has no effect when raw is True.\
     Default: 8.
 
-- y, u , v
+- y, u , v\
     Select which planes to process. Any unprocessed planes will be copied from the third clip.
     Default: y =true; u / v = false.
