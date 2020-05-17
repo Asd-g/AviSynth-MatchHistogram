@@ -218,11 +218,15 @@ class MatchHistogram : public GenericVideoFilter {
     int _smoothing_window;
     int _y, _u, _v;
     bool processPlane[3];
+    bool has_at_least_v8;
 
 public:
     MatchHistogram(PClip _child, PClip _clip, PClip _clip1, bool raw, bool show, bool debug, int smoothing_window, bool y, bool u, bool v, IScriptEnvironment* env)
         : GenericVideoFilter(_child), clip(_clip), clip1(_clip1), _raw(raw), _show(show), _debug(debug), _smoothing_window(smoothing_window), _y(y), _u(u), _v(v)
     {
+        has_at_least_v8 = true;
+        try { env->CheckVersion(8); } catch (const AvisynthError&) { has_at_least_v8 = false; }
+
         const VideoInfo &vi2 = clip->GetVideoInfo();
         const VideoInfo &vi3 = clip1->GetVideoInfo();
 
@@ -295,7 +299,7 @@ public:
         int planecount = min(vi.NumComponents(), 3);
         if (_debug)
         {
-            dst = env->NewVideoFrame(vi);
+            if (has_at_least_v8) dst = env->NewVideoFrameP(vi, &src1); else dst = env->NewVideoFrame(vi);
 
             for (int i = 0; i < planecount; i++)
             {
@@ -324,7 +328,7 @@ public:
         else
         {
             PVideoFrame src3 = clip1->GetFrame(n, env);
-            dst = env->NewVideoFrame(vi);
+            if (has_at_least_v8) dst = env->NewVideoFrameP(vi, &src1); else dst = env->NewVideoFrame(vi);
 
             uint8_t show_colors[3] = { 235, 160, 96 };
 
