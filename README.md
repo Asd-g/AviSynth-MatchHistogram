@@ -26,7 +26,7 @@ MatchHistogram (clip clip1 , clip clip2, clip clip3, bool "raw", bool "show", bo
 - clip3\
     Clip to be modified to match clip2's histogram.\
     Must have the same format as clip1 and constant dimensions.\
-    If this parameter is not passed then clip1 is used instead.\    
+    If this parameter is not passed then clip1 is used instead.\
     Default: clip1.
 
 - raw\
@@ -34,8 +34,8 @@ MatchHistogram (clip clip1 , clip clip2, clip clip3, bool "raw", bool "show", bo
     Default: False.
 
 - show\
-    Show calculated curve on video frame.\    
-    This parameter has no effect when debug is True.\    
+    Show calculated curve on video frame.\
+    This parameter has no effect when debug is True.\
     Default: False.
 
 - debug\
@@ -49,7 +49,7 @@ MatchHistogram (clip clip1 , clip clip2, clip clip3, bool "raw", bool "show", bo
     Default: 8.
 
 - y, u , v\
-    Select which planes to process. Any unprocessed planes will be copied from the third clip.
+    Select which planes to process. Any unprocessed planes will be copied from the third clip.\
     Default: y =true; u / v = false.
 
 # License
