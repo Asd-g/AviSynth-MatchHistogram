@@ -40,6 +40,7 @@ MatchHistogram (clip clip1 , clip clip2, clip clip3, bool "raw", bool "show", bo
 
 - debug\
     Return 256x256 clip with calculated data.\
+    Only one plane is processed. u/v doesn't have effect.\
     Default: False.
     
 - smoothing_window\

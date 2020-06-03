@@ -27,7 +27,7 @@ private:
     unsigned char curve[256];
 
 public:
-    void Create(const uint8_t* ptr1, const uint8_t* ptr2, int width, int height, int stride, bool raw, int smoothing_window) {
+    void Create(const uint8_t* ptr1, const uint8_t* ptr2, int width, int height, int stride, int stride1, bool raw, int smoothing_window) {
         // Clear data
         for (int i = 0; i < 256; i++) {
             sum[i] = 0;
@@ -41,7 +41,7 @@ public:
                 div[ptr1[w]] += 1;
             }
             ptr1 += stride;
-            ptr2 += stride;
+            ptr2 += stride1;
         }
 
         // Raw curve
@@ -168,13 +168,13 @@ public:
         }
     }
 
-    void Process(const uint8_t* srcp, uint8_t* dstp, int width, int height, int stride) {
+    void Process(const uint8_t* srcp, uint8_t* dstp, int width, int height, int stride, int dst_stride) {
         for (int h = 0; h < height; h++) {
             for (int w = 0; w < width; w++)
                 dstp[w] = curve[srcp[w]];
 
             srcp += stride;
-            dstp += stride;
+            dstp += dst_stride;
         }
     }
 
@@ -198,7 +198,8 @@ public:
     }
 };
 
-static void copy_plane(PVideoFrame& dst, PVideoFrame& src, int plane, IScriptEnvironment* env) {
+static void copy_plane(PVideoFrame& dst, PVideoFrame& src, int plane, IScriptEnvironment* env)
+{
     const uint8_t* srcp = src->GetReadPtr(plane);
     int src_pitch = src->GetPitch(plane);
     int height = src->GetHeight(plane);
@@ -216,7 +217,7 @@ class MatchHistogram : public GenericVideoFilter {
     bool _show;
     bool _debug;
     int _smoothing_window;
-    int _y, _u, _v;
+    bool _y, _u, _v;
     bool processPlane[3];
     bool has_at_least_v8;
 
@@ -231,59 +232,41 @@ public:
         const VideoInfo &vi3 = clip1->GetVideoInfo();
 
         if (!vi.IsSameColorspace(vi2) || !vi.IsSameColorspace(vi3))
-        {
             env->ThrowError("MatchHistogram: the clips must have the same colorspace.");
-        }
 
         if (vi.width != vi2.width || vi.height != vi2.height)
-        {
             env->ThrowError("MatchHistogram: the first two clips must have the same dimensions.");
-        }
 
         if (vi.width == 0 || vi.height == 0 || vi3.width == 0 || vi3.height == 0)
-        {
             env->ThrowError("MatchHistogram: the clips must have constant format and dimensions.");
-        }
 
         if (vi.IsRGB() || vi.BitsPerComponent() > 8)
-        {
             env->ThrowError("MatchHistogram: the clips must have 8 bits per sample and must not be RGB.");
-        }
 
         if (_show && (vi.width < 256 || vi.height < 256 || vi3.width < 256 || vi3.height < 256))
-        {
             env->ThrowError("MatchHistogram: clips must be at least 256x256 pixels when show is True.");
-        }
 
         if (_debug)
         {
-            if (processPlane[0] + processPlane[1] + processPlane[2] > 1 || _y + _u + _v > 1)
-            {
+            if (vi.NumComponents() > 1)
                 env->ThrowError("MatchHistogram: only one plane can be processed at a time when debug is True.");
-            }
+
             vi.width = 256;
             vi.height = 256;
         }
         else
-        {
             vi = vi3;
-        }
+
 
         int planecount = min(vi.NumComponents(), 3);
         for (int i = 0; i < planecount; i++)
         {
             if (i == 0)
-            {
                 processPlane[i] = _y;
-            }
             else if (i == 1)
-            {
                 processPlane[i] = _u;
-            }
             else
-            {
                 processPlane[i] = _v;
-            }
         }
     }
 
@@ -291,78 +274,60 @@ public:
     {
         PVideoFrame src1 = child->GetFrame(n, env);
         PVideoFrame src2 = clip->GetFrame(n, env);
+        PVideoFrame src3 = clip1->GetFrame(n, env);
         PVideoFrame dst;
+        if (has_at_least_v8) dst = env->NewVideoFrameP(vi, &src1); else dst = env->NewVideoFrame(vi);
 
         CurveData curve;
 
-        int planes_y[3] = { PLANAR_Y, PLANAR_U, PLANAR_V };
+        int planes_y[4] = { PLANAR_Y, PLANAR_U, PLANAR_V, PLANAR_A };
         int planecount = min(vi.NumComponents(), 3);
-        if (_debug)
+        for (int i = 0; i < planecount; i++)
         {
-            if (has_at_least_v8) dst = env->NewVideoFrameP(vi, &src1); else dst = env->NewVideoFrame(vi);
+            const int plane = planes_y[i];         
+            
+            int src_stride = src1->GetPitch(plane);
+            int src1_stride = src2->GetPitch(plane);
+            int src3dst_width = src3->GetRowSize(plane);
+            int src_width = src1->GetRowSize(plane);
+            int dst_width = dst->GetRowSize(plane);
+            int src_height = src1->GetHeight(plane);
+            int src3dst_height = src3->GetHeight(plane);
+            int dst_stride = dst->GetPitch(plane);            
+            int dst_height = dst->GetHeight(plane);          
+            const uint8_t* src1p = src1->GetReadPtr(plane);
+            const uint8_t* src2p = src2->GetReadPtr(plane);
+            const uint8_t* src3p = src3->GetReadPtr(plane);
+            uint8_t* dstp = dst->GetWritePtr(plane);
 
-            for (int i = 0; i < planecount; i++)
+            if (_debug)
             {
-                const int plane = planes_y[i];
-
-                uint8_t* dstp = dst->GetWritePtr(plane);
-                int dst_width = dst->GetRowSize(plane);
-                int dst_height = dst->GetHeight(plane);
-                int dst_stride = dst->GetPitch(plane);
-
                 fillPlane(dstp, dst_width, dst_height, dst_stride, i ? 128 : 0);
 
                 if (processPlane[i])
                 {
-                    const uint8_t* src1p = src1->GetReadPtr(plane);
-                    const uint8_t* src2p = src2->GetReadPtr(plane);
-                    int src_width = src1->GetRowSize(plane);
-                    int src_height = src1->GetHeight(plane);
-                    int src_stride = src1->GetPitch(plane);
-
-                    curve.Create(src1p, src2p, src_width, src_height, src_stride, _raw, _smoothing_window);
+                    curve.Create(src1p, src2p, src_width, src_height, src_stride, src1_stride, _raw, _smoothing_window);
                     curve.Debug(dst->GetWritePtr(PLANAR_Y), dst->GetPitch(PLANAR_Y));
                 }
             }
-        }
-        else
-        {
-            PVideoFrame src3 = clip1->GetFrame(n, env);
-            if (has_at_least_v8) dst = env->NewVideoFrameP(vi, &src1); else dst = env->NewVideoFrame(vi);
-
-            uint8_t show_colors[3] = { 235, 160, 96 };
-
-            for (int i = 0; i < planecount; i++)
+            else
             {
-                const int plane = planes_y[i];
-                uint8_t* dstp = dst->GetWritePtr(plane);
-                int src3dst_stride = dst->GetPitch(plane);
+                uint8_t show_colors[3] = { 235, 160, 96 };             
+
                 if (processPlane[i])
                 {
-                    const uint8_t* src1p = src1->GetReadPtr(plane);
-                    const uint8_t* src2p = src2->GetReadPtr(plane);
-                    const uint8_t* src3p = src3->GetReadPtr(plane);
-                    int src12_width = src1->GetRowSize(plane);
-                    int src12_height = src1->GetHeight(plane);
-                    int src12_stride = src1->GetPitch(plane);
-                    int src3dst_width = src3->GetRowSize(plane);
-                    int src3dst_height = src3->GetHeight(plane);
-
-                    curve.Create(src1p, src2p, src12_width, src12_height, src12_stride, _raw, _smoothing_window);
-                    curve.Process(src3p, dstp, src3dst_width, src3dst_height, src3dst_stride);
+                    curve.Create(src1p, src2p, src_width, src_height, src_stride, src1_stride, _raw, _smoothing_window);
+                    curve.Process(src3p, dstp, src3dst_width, src3dst_height, src_stride, dst_stride);
                 }
                 else
-                {
                     copy_plane(dst, src3, plane, env);
-                }
+
                 if (_show)
                 {
-                    fillPlane(dstp, 256 >> (i ? vi.GetPlaneWidthSubsampling(plane) : 0), 256 >> (i ? vi.GetPlaneHeightSubsampling(plane) : 0), src3dst_stride, i ? 128 : 16);
+                    fillPlane(dstp, 256 >> (i ? vi.GetPlaneWidthSubsampling(plane) : 0), 256 >> (i ? vi.GetPlaneHeightSubsampling(plane) : 0), dst_stride, i ? 128 : 16);
 
                     if (processPlane[i])
-                    {
                         curve.Show(dst->GetWritePtr(PLANAR_Y), dst->GetPitch(PLANAR_Y), show_colors[i]);
-                    }
                 }
             }
         }
@@ -373,7 +338,18 @@ public:
 
 AVSValue __cdecl Create_MatchHistogram(AVSValue args, void* user_data, IScriptEnvironment* env)
 {
-    return new MatchHistogram(args[0].AsClip(), args[1].AsClip(), args[2].AsClip(), args[3].AsBool(false), args[4].AsBool(false), args[5].AsBool(false), args[6].AsInt(8), args[7].AsBool(true), args[8].AsBool(false), args[9].AsBool(false), env);
+    return new MatchHistogram(
+        args[0].AsClip(),
+        args[1].AsClip(),
+        args[2].AsClip(),
+        args[3].AsBool(false),
+        args[4].AsBool(false),
+        args[5].AsBool(false),
+        args[6].AsInt(8),
+        args[7].AsBool(true),
+        args[8].AsBool(false),
+        args[9].AsBool(false),
+        env);
 }
 
 const AVS_Linkage* AVS_linkage;
