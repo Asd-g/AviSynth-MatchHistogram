@@ -1,3 +1,7 @@
+##### 2.1.2:
+    Now clip3 is optional.
+    Registered as MT_NICE_FILTER .
+
 ##### 2.1.1:
     Fixed memory misalignment for AviSynth 2.6.
 

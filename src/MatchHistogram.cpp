@@ -226,10 +226,11 @@ public:
         : GenericVideoFilter(_child), clip(_clip), clip1(_clip1), _raw(raw), _show(show), _debug(debug), _smoothing_window(smoothing_window), _y(y), _u(u), _v(v)
     {
         has_at_least_v8 = true;
-        try { env->CheckVersion(8); } catch (const AvisynthError&) { has_at_least_v8 = false; }
+        try { env->CheckVersion(8); }
+        catch (const AvisynthError&) { has_at_least_v8 = false; }
 
-        const VideoInfo &vi2 = clip->GetVideoInfo();
-        const VideoInfo &vi3 = clip1->GetVideoInfo();
+        const VideoInfo& vi2 = clip->GetVideoInfo();
+        const VideoInfo& vi3 = clip1 ? clip1->GetVideoInfo() : vi;
 
         if (!vi.IsSameColorspace(vi2) || !vi.IsSameColorspace(vi3))
             env->ThrowError("MatchHistogram: the clips must have the same colorspace.");
@@ -257,16 +258,17 @@ public:
         else
             vi = vi3;
 
+        *processPlane = 0;
 
         int planecount = min(vi.NumComponents(), 3);
         for (int i = 0; i < planecount; i++)
         {
-            if (i == 0)
-                processPlane[i] = _y;
-            else if (i == 1)
-                processPlane[i] = _u;
-            else
-                processPlane[i] = _v;
+            switch (i)
+            {
+                case 0: processPlane[i] = _y; break;
+                case 1: processPlane[i] = _u; break;
+                default: processPlane[i] = _v; break;
+            }
         }
     }
 
@@ -274,9 +276,8 @@ public:
     {
         PVideoFrame src1 = child->GetFrame(n, env);
         PVideoFrame src2 = clip->GetFrame(n, env);
-        PVideoFrame src3 = clip1->GetFrame(n, env);
-        PVideoFrame dst;
-        if (has_at_least_v8) dst = env->NewVideoFrameP(vi, &src1); else dst = env->NewVideoFrame(vi);
+        PVideoFrame src3 = clip1 ? clip1->GetFrame(n, env) : src1;
+        PVideoFrame dst = has_at_least_v8 ? env->NewVideoFrameP(vi, &src1) : env->NewVideoFrame(vi);
 
         CurveData curve;
 
@@ -287,17 +288,17 @@ public:
             const int plane = planes_y[i];         
             
             int src_stride = src1->GetPitch(plane);
-            int src1_stride = src2->GetPitch(plane);
-            int src3dst_width = src3->GetRowSize(plane);
+            int src1_stride = src2->GetPitch(plane);            
             int src_width = src1->GetRowSize(plane);
+            int src3dst_width = clip1 ? src3->GetRowSize(plane) : src_width;
             int dst_width = dst->GetRowSize(plane);
             int src_height = src1->GetHeight(plane);
-            int src3dst_height = src3->GetHeight(plane);
+            int src3dst_height = clip1 ? src3->GetHeight(plane) : src_height;
             int dst_stride = dst->GetPitch(plane);            
             int dst_height = dst->GetHeight(plane);          
             const uint8_t* src1p = src1->GetReadPtr(plane);
             const uint8_t* src2p = src2->GetReadPtr(plane);
-            const uint8_t* src3p = src3->GetReadPtr(plane);
+            const uint8_t* src3p = clip1 ? src3->GetReadPtr(plane) : src1p;
             uint8_t* dstp = dst->GetWritePtr(plane);
 
             if (_debug)
@@ -334,6 +335,11 @@ public:
 
         return dst;
     }
+
+    int __stdcall SetCacheHints(int cachehints, int frame_range)
+    {
+        return cachehints == CACHE_GET_MTMODE ? MT_NICE_FILTER : 0;
+    }
 };
 
 AVSValue __cdecl Create_MatchHistogram(AVSValue args, void* user_data, IScriptEnvironment* env)
@@ -359,6 +365,6 @@ const char* __stdcall AvisynthPluginInit3(IScriptEnvironment * env, const AVS_Li
 {
     AVS_linkage = vectors;
 
-    env->AddFunction("MatchHistogram", "ccc[raw]b[show]b[debug]b[smoothing_window]i[y]b[u]b[v]b", Create_MatchHistogram, NULL);
+    env->AddFunction("MatchHistogram", "cc[clip3]c[raw]b[show]b[debug]b[smoothing_window]i[y]b[u]b[v]b", Create_MatchHistogram, NULL);
     return "MatchHistogram";
 }
