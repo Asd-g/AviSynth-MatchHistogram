@@ -241,8 +241,8 @@ public:
         if (vi.width == 0 || vi.height == 0 || vi3.width == 0 || vi3.height == 0)
             env->ThrowError("MatchHistogram: the clips must have constant format and dimensions.");
 
-        if (vi.IsRGB() || vi.BitsPerComponent() > 8)
-            env->ThrowError("MatchHistogram: the clips must have 8 bits per sample and must not be RGB.");
+        if (vi.IsRGB() || vi.BitsPerComponent() > 8 || !vi.IsPlanar())
+            env->ThrowError("MatchHistogram: the clips must be 8-bit in Y/YUV planar format.");
 
         if (_show && (vi.width < 256 || vi.height < 256 || vi3.width < 256 || vi3.height < 256))
             env->ThrowError("MatchHistogram: clips must be at least 256x256 pixels when show is True.");
