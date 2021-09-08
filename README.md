@@ -1,4 +1,4 @@
-# Description
+## Description
 
 MatchHistogram modifies one clip's histogram to match the histogram of another clip.
 
@@ -8,13 +8,19 @@ Should be used for analysis only, not for production.
 
 This is [a port of the VapourSynth plugin MatchHistogram](https://github.com/dubhater/vapoursynth-matchhistogram).
 
-# Usage
+### Requirements:
+
+- AviSynth 2.60 / AviSynth+ 3.4 or later
+
+- Microsoft VisualC++ Redistributable Package 2022 (can be downloaded from [here](https://github.com/abbodi1406/vcredist/releases))
+
+### Usage:
 
 ```
 MatchHistogram (clip clip1 , clip clip2, clip clip3, bool "raw", bool "show", bool "debug", int "smoothing_window", bool "y", bool "u", bool "v")
 ```
 
-## Parameters:
+### Parameters:
 
 - clip1\
     Must have constant format and dimensions and 8 bits per sample, and it must not be RGB.
